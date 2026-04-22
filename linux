@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Terminal Pro & Admin Dashboard</title>
+    
+    <style>
+        /* O seletor :root é usado para criar variáveis globais de CSS. 
+           Por que? Porque se quisermos mudar a cor do tema amanhã, 
+           mudamos apenas aqui, em vez de caçar as cores pelo código todo.
+        */
+        :root {
+            --bg-page: #121212;
+            --bg-term: #1e1e2e;
+            --text-term: #a6accd;
+            --bg-admin: #1a1b26;
+            --text-admin: #c0caf5;
+            --accent: #f7768e;
+            --success: #9ece6a;
+            --folder: #7aa2f7;
+            --window-header: #292e42;
+        }
+
+        /* Reset básico e configuração do layout principal.
+           Usamos 'display: flex' para colocar o terminal e o painel admin lado a lado.
+        */
+        body {
+            margin: 0;
+            padding: 20px; /* Dá um respiro nas bordas da tela */
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            gap: 20px; /* Cria um espaço entre os painéis (terminal e admin) */
+            height: 100vh;
+            box-sizing: border-box; /* Garante que o padding não aumente o tamanho total da tela */
+            background-color: var(--bg-page);
+        }
+
+        /* =========================================
+           ÁREA DO TERMINAL (LADO ESQUERDO)
+           ========================================= */
+        #terminal-wrapper {
+            flex: 6; /* Ocupa 6 partes do espaço disponível (mais largo que o admin) */
+            display: flex;
+            flex-direction: column;
+            border-radius: 10px; /* Deixa os cantos arredondados, estilo macOS/Ubuntu moderno */
+            overflow: hidden; /* Corta qualquer coisa que vaze dos cantos arredondados */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); /* Sombra para dar profundidade (efeito 3D) */
+            background-color: var(--bg-term);
+        }
+
+        /* Barra superior falsa da janela do terminal para fins estéticos */
+        .window-header {
+            background-color: var(--window-header);
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px; /* Espaço entre os "botões" de fechar, minimizar, maximizar */
+        }
+
+        /* Criando as bolinhas da janela (vermelho, amarelo, verde) */
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot.red { background-color: #ff5f56; }
+        .dot.yellow { background-color: #ffbd2e; }
+        .dot.green { background-color: #27c93f; }
+
+        /* Contêiner principal onde o texto do terminal aparece */
+        #terminal-container {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Permite rolagem apenas se o texto passar do tamanho da tela */
+            flex-grow: 1; /* Faz o terminal preencher todo o espaço restante do wrapper */
+            font-family: 'Consolas', 'Courier New', monospace; /* Fonte monoespaçada é padrão de terminais */
+            color: var(--text-term);
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* Onde o histórico de comandos aparece. white-space: pre-wrap respeita as quebras de linha (\n) do JS */
+        #terminal-output {
+            white-space: pre-wrap;
+            margin-bottom: 10px;
+        }
+
+        /* Linha onde o usuário digita no momento */
+        .input-line {
+            display: flex;
+            align-items: center;
+        }
+
+        /* Estilização colorida do prompt (user@ubuntu:~) */
+        .prompt { font-weight: bold; margin-right: 10px; }
+        .prompt .user { color: var(--success); }
+        .prompt .host { color: var(--success); }
+        .prompt .dir { color: var(--folder); }
+        .prompt .char { color: #fff; }
+
+        /* O campo de input real (invisível, mas funcional) */
+        #cmd-input {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 15px;
+            flex-grow: 1; /* Ocupa o resto da linha */
+            outline: none; /* Remove a borda azul feia de foco padrão dos navegadores */
+        }
+
+        /* Orientação didática do comando */
+        .info-text {
+            color: #e0af68; /* Cor amarela suave para destacar a explicação */
+            font-style: italic;
+        }
+
+        /* =========================================
+           ÁREA DO ADMIN (LADO DIREITO)
+           ========================================= */
+        #admin-container {
+            flex: 4; /* Ocupa 4 partes do espaço (menor que o terminal) */
+            background-color: var(--bg-admin);
+            color: var(--text-admin);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+
+        /* Título do painel admin */
+        #admin-container h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--accent); /* Linha vermelha/rosa embaixo do título */
+            padding-bottom: 10px;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Onde os logs vão aparecer com barra de rolagem */
+        #log-output {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+
+        /* Cada linha de log individual */
+        .log-entry {
+            background-color: rgba(255,255,255,0.05); /* Fundo levemente transparente */
+            margin-bottom: 8px;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid var(--accent); /* Barrinha lateral para dar estilo de "notificação" */
+            animation: fadeIn 0.3s ease-in-out; /* Animação suave ao aparecer */
+        }
+
+        .log-time {
+            color: #7dcfff; /* Azul claro para a hora */
+            font-family: monospace;
+            margin-right: 8px;
+        }
+
+        /* Animação para os logs não aparecerem de forma seca (animação de opacidade e movimento) */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Personalização da barra de rolagem (Scrollbar) para não ficar com aparência velha do Windows/Mac */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+    </style>
+</head>
+<body>
+
+    <div id="terminal-wrapper" onclick="document.getElementById('cmd-input').focus()">
+        <div class="window-header">
+            <div class="dot red"></div>
+            <div class="dot yellow"></div>
+            <div class="dot green"></div>
+        </div>
+        <div id="terminal-container">
+            <div id="terminal-output">Simulador Ubuntu Server 22.04 LTS ativo.
+Modo de aprendizado de comandos habilitado.
+Digite <span style="color: var(--success)">'help'</span> para a lista de comandos ou <span style="color: var(--success)">'clear'</span> para limpar.
+</div>
+            <div class="input-line">
+                <span class="prompt"><span class="user">aluno</span><span class="char">@</span><span class="host">ubuntu</span><span class="char">:</span><span class="dir">~</span><span class="char">$</span></span>
+                <input type="text" id="cmd-input" autocomplete="off" autofocus spellcheck="false">
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-container">
+        <h2>Logs de Auditoria (Admin)</h2>
+        <div id="log-output">
+            </div>
+    </div>
+
+    <script>
+        // === 1. CAPTURA DOS ELEMENTOS DA TELA ===
+        // Usamos document.getElementById para pegar as 'caixas' do HTML e poder manipulá-las no Javascript
+        const terminalOutput = document.getElementById('terminal-output');
+        const cmdInput = document.getElementById('cmd-input');
+        const logOutput = document.getElementById('log-output');
+        const terminalContainer = document.getElementById('terminal-container');
+
+        // === 2. BANCO DE DADOS DOS COMANDOS (CORRIGIDO E TÉCNICO) ===
+        const commands = {
+            // -- 30 Comandos de Administração --
+            "ls": { sim: "Desktop  Documents  Downloads  Music  Pictures", desc: "Lista o conteúdo de diretórios. Pode usar '-l' para ver permissões e detalhes, ou '-a' para mostrar arquivos ocultos." },
+            "cd": { sim: "", desc: "Muda o diretório de trabalho atual (Change Directory). Navega pela hierarquia do sistema de arquivos." },
+            "pwd": { sim: "/home/aluno", desc: "Print Working Directory. Imprime o caminho absoluto (completo) do diretório atual." },
+            "mkdir": { sim: "", desc: "Make Directory. Cria um ou mais diretórios no sistema de arquivos." },
+            "rm": { sim: "", desc: "Remove arquivos ou diretórios. DICA: Para remover diretórios e seus conteúdos, exige o uso da flag recursiva '-r'." },
+            "cp": { sim: "", desc: "Copia arquivos. Para copiar diretórios inteiros, é necessário usar o parâmetro '-r' (recursivo)." },
+            "mv": { sim: "", desc: "Move ou renomeia arquivos e diretórios. Altera o caminho ou o nome do arquivo no sistema." },
+            "cat": { sim: "Conteúdo do arquivo...\nLinux é incrível!", desc: "Concatena e imprime arquivos na saída padrão (tela). Ideal para ler arquivos de texto curtos." },
+            "less": { sim: "[Visualização em página. Aperte 'q' para sair]", desc: "Exibe o conteúdo de um arquivo permitindo paginação (rolar para cima/baixo), não carregando o arquivo inteiro na RAM de uma vez." },
+            "tail": { sim: "log_erro: falha no db\nlog_sucesso: login ok", desc: "Exibe por padrão as últimas 10 linhas de um arquivo. Usando 'tail -f', ele acompanha atualizações do arquivo em tempo real (ótimo para logs)." },
+            "head": { sim: "#!/bin/bash\n# Script de backup", desc: "Exibe por padrão as primeiras 10 linhas de um arquivo." },
+            "grep": { sim: "aluno:x:1000:1000::/home/aluno:/bin/bash", desc: "Filtra e busca padrões de texto (Expressões Regulares) dentro de arquivos ou na saída de outros comandos." },
+            "find": { sim: "/etc/passwd\n/etc/shadow", desc: "Realiza buscas recursivas na hierarquia de diretórios por arquivos, baseando-se em nome, permissões, dono, tamanho ou data." },
+            "chmod": { sim: "", desc: "Change Mode. Altera os bits de permissão (Leitura, Gravação, Execução) de arquivos ou diretórios." },
+            "chown": { sim: "", desc: "Change Owner. Altera o usuário proprietário (Owner) e/ou o grupo pertencente de um arquivo ou diretório." },
+            "sudo": { sim: "[sudo] senha para aluno: \nOK.", desc: "SuperUser DO. Permite que um usuário comum execute comandos com os privilégios de segurança de outro usuário (por padrão, o root)." },
+            "su": { sim: "root@ubuntu:/home/aluno#", desc: "Switch User. Inicia um shell substituindo o ID e as permissões de usuário atual pelas do usuário alvo (padrão é root)." },
+            "passwd": { sim: "Senha atualizada com sucesso.", desc: "Atualiza o token de autenticação (senha) de um usuário." },
+            "useradd": { sim: "", desc: "Utilitário de baixo nível para criar uma nova conta de usuário ou atualizar informações padrão de novos usuários." },
+            "usermod": { sim: "", desc: "Modifica atributos de uma conta de usuário existente (ex: adicionar o usuário a um novo grupo de permissões)." },
+            "userdel": { sim: "", desc: "Exclui uma conta de usuário e arquivos relacionados (se usar a flag correta)." },
+            "df": { sim: "Sist. Arq. Uso%\n/dev/sda1  45%", desc: "Disk Free. Exibe a quantidade de espaço em disco disponível e utilizado nos sistemas de arquivos montados." },
+            "du": { sim: "4096 ./Downloads", desc: "Disk Usage. Estima e exibe o uso de espaço no disco de arquivos ou diretórios específicos." },
+            "free": { sim: "Mem: 8000 total, 2000 used, 6000 free", desc: "Exibe a quantidade total de memória física (RAM) e swap livres e usadas no sistema." },
+            "top": { sim: "Tasks: 150 total\n%Cpu(s): 5% us, 95% id", desc: "Exibe os processos do Linux rodando em tempo real, fornecendo um resumo dinâmico do sistema (CPU, RAM, PID)." },
+            "ps": { sim: "PID TTY TIME CMD\n123 pts/0 00:00 bash", desc: "Process Status. Exibe um instantâneo (snapshot) dos processos em execução na sessão atual." },
+            "kill": { sim: "Sinal SIGTERM enviado.", desc: "Envia um sinal (por padrão, SIGTERM - sinal de término) a um processo específico usando seu PID (Process ID) para interrompê-lo." },
+            "systemctl": { sim: "nginx.service - Active: running", desc: "Comando central para inspecionar e controlar o sistema de inicialização e o gerenciador de serviços do Linux (systemd)." },
+            "apt": { sim: "Instalando pacotes...", desc: "Advanced Package Tool. Utilitário de linha de comando para gerenciamento de pacotes (instalação, atualização e remoção de softwares)." },
+            "history": { sim: "1 ls\n2 pwd\n3 history", desc: "Imprime o histórico cronológico de comandos previamente digitados pelo usuário no terminal." },
+
+            // -- 10 Comandos de Rede --
+            "ping": { sim: "64 bytes from 8.8.8.8: time=14.2 ms", desc: "Testa a conectividade enviando pacotes ICMP (Echo Request) a um host de rede para medir latência e perda de pacotes." },
+            "ip": { sim: "eth0: <UP,LOWER_UP> inet 192.168.0.15", desc: "Utilitário versátil do pacote 'iproute2' para mostrar ou manipular roteamento, dispositivos de rede, interfaces e túneis." },
+            "ifconfig": { sim: "eth0: inet 192.168.0.15", desc: "Ferramenta depreciada (legada) do 'net-tools' para configurar interfaces de rede. Substituída pelo comando 'ip'." },
+            "netstat": { sim: "tcp 0 0 0.0.0.0:80 LISTEN", desc: "Ferramenta (também legada) para imprimir conexões de rede, tabelas de roteamento e estatísticas de interfaces." },
+            "ss": { sim: "ESTAB 192.168.0.15:22 10.0.0.5:5432", desc: "Socket Statistics. Substituto moderno e mais rápido do 'netstat', que despeja estatísticas de soquetes (TCP/UDP)." },
+            "traceroute": { sim: "1 roteador.casa (192.168.0.1)\n2 provedor.net (10.0.0.1)", desc: "Rastreia e imprime o caminho de roteamento que os pacotes IP levam até um host de destino (mostra os saltos/hops)." },
+            "nslookup": { sim: "Name: google.com\nAddress: 142.250.190.46", desc: "Name Server Lookup. Consulta servidores DNS de forma interativa para resolver nomes de domínio em endereços IP (ou vice-versa)." },
+            "dig": { sim: "google.com. IN A 142.250.190.46", desc: "Domain Information Groper. Ferramenta flexível para interrogar servidores DNS, oferecendo respostas mais detalhadas que o nslookup." },
+            "curl": { sim: "<html><body>Olá Mundo</body></html>", desc: "Ferramenta de transferência de dados por linha de comando utilizando diversos protocolos (HTTP, FTP, etc). Muito usada para testar APIs." },
+            "wget": { sim: "Download concluído. 'arquivo.zip' salvo.", desc: "Utilitário não-interativo para o download de arquivos via web. Excelente para baixar arquivos grandes ou espelhar sites." }
+        };
+
+        // === 3. FUNÇÃO DE LOG (ADMIN) ===
+        // Responsável por criar a visualização no painel da direita.
+        function addLog(commandText) {
+            const now = new Date(); // Pega a data e hora exata do momento do comando
+            
+            // Formata a hora para ficar sempre com 2 dígitos (ex: 09:05:02 em vez de 9:5:2)
+            const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
+                               now.getMinutes().toString().padStart(2, '0') + ':' + 
+                               now.getSeconds().toString().padStart(2, '0');
+            
+            // Cria um novo bloco de HTML em texto
+            const logHTML = `
+                <div class="log-entry">
+                    <span class="log-time">[${timeString}]</span>
+                    Usuário executou: <strong>${commandText}</strong>
+                </div>
+            `;
+            
+            // Injeta o bloco criado no final da lista de logs
+            logOutput.innerHTML += logHTML;
+            
+            // Força a barra de rolagem do painel admin a descer para mostrar o log mais recente
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        // === 4. LÓGICA PRINCIPAL DO TERMINAL ===
+        // Fica 'escutando' o teclado. Sempre que o usuário aperta uma tecla no campo de input, essa função roda.
+        cmdInput.addEventListener('keydown', function(event) {
+            
+            // Verificamos se a tecla apertada foi o 'Enter'. Só queremos agir se ele enviar o comando.
+            if (event.key === 'Enter') {
+                const rawInput = this.value;           // Pega exatamente o que o usuário digitou (ex: "   ls -l  ")
+                const input = rawInput.trim();         // Remove espaços em branco nas pontas (vira "ls -l")
+                const cmdBase = input.split(' ')[0].toLowerCase(); // Pega apenas a primeira palavra em minúsculo (vira "ls")
+                
+                // 4.1. Ecoar o comando na tela
+                // Simula o comportamento padrão do Linux: mostrar o prompt + comando digitado antes de dar a resposta
+                const promptHTML = `<span class="prompt"><span class="user">aluno</span><span class="char">@</span><span class="host">ubuntu</span><span class="char">:</span><span class="dir">~</span><span class="char">$</span></span>`;
+                terminalOutput.innerHTML += `\n${promptHTML} ${rawInput}\n`;
+
+                // 4.2. Processar o comando apenas se o usuário digitou algo (não deu enter vazio)
+                if (input !== "") {
+                    addLog(input); // Manda o que o usuário digitou para a função do Administrador
+
+                    // Comando CLEAR: Lógica especial para limpar a tela
+                    if (cmdBase === 'clear') {
+                        terminalOutput.innerHTML = ""; // Apaga todo o conteúdo interno da div
+                    } 
+                    // Comando HELP: Lógica especial para listar ajuda
+                    else if (cmdBase === 'help') {
+                        terminalOutput.innerHTML += "Comandos disponíveis:\nADMIN: ls, cd, pwd, mkdir, rm, cp, mv, cat, less, tail, head, grep, find, chmod, chown, sudo, su, passwd, useradd, usermod, userdel, df, du, free, top, ps, kill, systemctl, apt, history\nREDE: ping, ip, ifconfig, netstat, ss, traceroute, nslookup, dig, curl, wget\nOUTROS: clear, help\n";
+                    } 
+                    // Se o comando existir no nosso "Banco de Dados" (Objeto 'commands' ali em cima)
+                    else if (commands[cmdBase]) {
+                        
+                        // Se o comando tiver uma simulação de saída (ex: o texto que o 'ls' retorna)
+                        if (commands[cmdBase].sim) {
+                            terminalOutput.innerHTML += commands[cmdBase].sim + "\n";
+                        }
+                        // Mostra a orientação didática destacada
+                        terminalOutput.innerHTML += `<span class="info-text">💡 Explicação: ${commands[cmdBase].desc}</span>\n`;
+                    } 
+                    // Se o usuário digitou algo que não programamos
+                    else {
+                        terminalOutput.innerHTML += `bash: ${cmdBase}: comando não encontrado\n`;
+                    }
+                }
+
+                // 4.3. Limpezas finais após dar o enter
+                // Força o terminal a rolar a página para o fundo, para o usuário sempre ver a linha atual
+                terminalContainer.scrollTop = terminalContainer.scrollHeight;
+                
+                // Limpa o campo de texto para o usuário digitar o próximo comando
+                this.value = '';
+            }
+        });
+    </script>
+</body>
+</html>
