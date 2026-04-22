@@ -3,216 +3,271 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador Terminal Pro & Admin Dashboard</title>
+    <title>Simulador Terminal Linux & Admin Dashboard</title>
     
     <style>
-        /* O seletor :root é usado para criar variáveis globais de CSS. 
-           Por que? Porque se quisermos mudar a cor do tema amanhã, 
-           mudamos apenas aqui, em vez de caçar as cores pelo código todo.
-        */
+        /* =========================================
+           PALETA DE CORES E VARIÁVEIS GLOBAIS
+           Foco em Preto, Branco e Amarelo
+           ========================================= */
         :root {
-            --bg-page: #121212;
-            --bg-term: #1e1e2e;
-            --text-term: #a6accd;
-            --bg-admin: #1a1b26;
-            --text-admin: #c0caf5;
-            --accent: #f7768e;
-            --success: #9ece6a;
-            --folder: #7aa2f7;
-            --window-header: #292e42;
+            --bg-page: #000000;         /* Fundo geral preto puro */
+            --bg-panel: #111111;        /* Fundo dos painéis (cinza muito escuro) */
+            --text-main: #ffffff;       /* Texto principal branco */
+            --text-muted: #aaaaaa;      /* Texto secundário/cinza */
+            --accent-yellow: #FFD700;   /* Amarelo principal (Ouro) */
+            --accent-hover: #ffea70;    /* Amarelo claro para hover */
+            --border-color: #333333;    /* Bordas discretas */
         }
 
-        /* Reset básico e configuração do layout principal.
-           Usamos 'display: flex' para colocar o terminal e o painel admin lado a lado.
-        */
-        body {
+        /* Reset básico */
+        * {
+            box-sizing: border-box;
             margin: 0;
-            padding: 20px; /* Dá um respiro nas bordas da tela */
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            gap: 20px; /* Cria um espaço entre os painéis (terminal e admin) */
-            height: 100vh;
-            box-sizing: border-box; /* Garante que o padding não aumente o tamanho total da tela */
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-page);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            padding: 20px;
+            gap: 20px;
+            overflow: hidden; /* Evita rolagem na página inteira */
         }
 
         /* =========================================
            ÁREA DO TERMINAL (LADO ESQUERDO)
            ========================================= */
         #terminal-wrapper {
-            flex: 6; /* Ocupa 6 partes do espaço disponível (mais largo que o admin) */
+            flex: 6;
             display: flex;
             flex-direction: column;
-            border-radius: 10px; /* Deixa os cantos arredondados, estilo macOS/Ubuntu moderno */
-            overflow: hidden; /* Corta qualquer coisa que vaze dos cantos arredondados */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); /* Sombra para dar profundidade (efeito 3D) */
-            background-color: var(--bg-term);
+            background-color: var(--bg-panel);
+            border: 2px solid var(--accent-yellow); /* Destaque em amarelo para o terminal */
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+            overflow: hidden;
+            cursor: text; /* Indica que é uma área digitável */
         }
 
-        /* Barra superior falsa da janela do terminal para fins estéticos */
-        .window-header {
-            background-color: var(--window-header);
-            padding: 10px;
+        /* Cabeçalho do Terminal */
+        .terminal-header {
+            background-color: var(--accent-yellow);
+            color: #000;
+            padding: 10px 15px;
+            font-weight: bold;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px; /* Espaço entre os "botões" de fechar, minimizar, maximizar */
+            font-family: 'Courier New', Courier, monospace;
         }
 
-        /* Criando as bolinhas da janela (vermelho, amarelo, verde) */
-        .dot {
+        .terminal-header .dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .terminal-header .dot {
             width: 12px;
             height: 12px;
+            background-color: #000;
             border-radius: 50%;
+            opacity: 0.5;
         }
-        .dot.red { background-color: #ff5f56; }
-        .dot.yellow { background-color: #ffbd2e; }
-        .dot.green { background-color: #27c93f; }
 
-        /* Contêiner principal onde o texto do terminal aparece */
+        /* Contêiner interno do terminal */
         #terminal-container {
             padding: 20px;
             display: flex;
             flex-direction: column;
-            overflow-y: auto; /* Permite rolagem apenas se o texto passar do tamanho da tela */
-            flex-grow: 1; /* Faz o terminal preencher todo o espaço restante do wrapper */
-            font-family: 'Consolas', 'Courier New', monospace; /* Fonte monoespaçada é padrão de terminais */
-            color: var(--text-term);
-            font-size: 15px;
-            line-height: 1.5;
+            overflow-y: auto;
+            flex-grow: 1;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 16px;
+            line-height: 1.6;
         }
 
-        /* Onde o histórico de comandos aparece. white-space: pre-wrap respeita as quebras de linha (\n) do JS */
         #terminal-output {
             white-space: pre-wrap;
             margin-bottom: 10px;
         }
 
-        /* Linha onde o usuário digita no momento */
         .input-line {
             display: flex;
             align-items: center;
         }
 
-        /* Estilização colorida do prompt (user@ubuntu:~) */
-        .prompt { font-weight: bold; margin-right: 10px; }
-        .prompt .user { color: var(--success); }
-        .prompt .host { color: var(--success); }
-        .prompt .dir { color: var(--folder); }
-        .prompt .char { color: #fff; }
+        /* Estilização do Prompt */
+        .prompt {
+            color: var(--accent-yellow);
+            font-weight: bold;
+            margin-right: 10px;
+            white-space: nowrap;
+        }
 
-        /* O campo de input real (invisível, mas funcional) */
         #cmd-input {
             background: transparent;
             border: none;
-            color: #fff;
+            color: var(--text-main);
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 15px;
-            flex-grow: 1; /* Ocupa o resto da linha */
-            outline: none; /* Remove a borda azul feia de foco padrão dos navegadores */
+            font-size: 16px;
+            flex-grow: 1;
+            outline: none;
+            caret-color: var(--accent-yellow); /* Cor do cursor piscando */
         }
 
-        /* Orientação didática do comando */
+        /* Textos explicativos e de simulação */
+        .cmd-sim-output {
+            color: var(--text-main);
+            padding-left: 10px;
+        }
+
         .info-text {
-            color: #e0af68; /* Cor amarela suave para destacar a explicação */
+            display: block;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            background-color: rgba(255, 215, 0, 0.1);
+            border-left: 4px solid var(--accent-yellow);
+            color: var(--text-muted);
             font-style: italic;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 14px;
+        }
+
+        .info-text strong {
+            color: var(--accent-yellow);
+            font-style: normal;
         }
 
         /* =========================================
            ÁREA DO ADMIN (LADO DIREITO)
            ========================================= */
         #admin-container {
-            flex: 4; /* Ocupa 4 partes do espaço (menor que o terminal) */
-            background-color: var(--bg-admin);
-            color: var(--text-admin);
-            border-radius: 10px;
-            padding: 20px;
+            flex: 4;
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid #333;
+            overflow: hidden;
         }
 
-        /* Título do painel admin */
-        #admin-container h2 {
-            margin-top: 0;
-            border-bottom: 2px solid var(--accent); /* Linha vermelha/rosa embaixo do título */
-            padding-bottom: 10px;
+        /* Cabeçalho do Admin */
+        .admin-header {
+            background-color: #222;
+            color: var(--accent-yellow);
+            padding: 15px;
+            text-align: center;
             font-size: 18px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border-color);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
 
-        /* Onde os logs vão aparecer com barra de rolagem */
         #log-output {
+            padding: 15px;
             flex-grow: 1;
             overflow-y: auto;
-            font-size: 13px;
+            font-size: 14px;
         }
 
-        /* Cada linha de log individual */
         .log-entry {
-            background-color: rgba(255,255,255,0.05); /* Fundo levemente transparente */
-            margin-bottom: 8px;
-            padding: 10px;
-            border-radius: 5px;
-            border-left: 4px solid var(--accent); /* Barrinha lateral para dar estilo de "notificação" */
-            animation: fadeIn 0.3s ease-in-out; /* Animação suave ao aparecer */
+            background-color: #000;
+            border: 1px solid var(--border-color);
+            margin-bottom: 10px;
+            padding: 12px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .log-entry:hover {
+            border-color: var(--accent-yellow);
         }
 
         .log-time {
-            color: #7dcfff; /* Azul claro para a hora */
+            color: var(--accent-yellow);
             font-family: monospace;
-            margin-right: 8px;
+            font-size: 12px;
         }
 
-        /* Animação para os logs não aparecerem de forma seca (animação de opacidade e movimento) */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateX(10px); }
-            to { opacity: 1; transform: translateX(0); }
+        .log-cmd {
+            color: var(--text-main);
+            font-family: 'Consolas', monospace;
+            font-weight: bold;
         }
 
-        /* Personalização da barra de rolagem (Scrollbar) para não ficar com aparência velha do Windows/Mac */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Barras de rolagem personalizadas */
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #777; }
+        ::-webkit-scrollbar-track { background: var(--bg-page); }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-yellow); }
+
+        /* Responsividade para telas menores */
+        @media (max-width: 900px) {
+            body { flex-direction: column; }
+            #terminal-wrapper { flex: 1; min-height: 50vh; }
+            #admin-container { flex: 1; min-height: 40vh; }
+        }
     </style>
 </head>
 <body>
 
+    <!-- LADO ESQUERDO: TERMINAL DO USUÁRIO -->
     <div id="terminal-wrapper" onclick="document.getElementById('cmd-input').focus()">
-        <div class="window-header">
-            <div class="dot red"></div>
-            <div class="dot yellow"></div>
-            <div class="dot green"></div>
+        <div class="terminal-header">
+            <div class="dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+            <span>aluno@ubuntu-server:~</span>
+            <div></div> <!-- Espaçador para flexbox -->
         </div>
+        
         <div id="terminal-container">
-            <div id="terminal-output">Simulador Ubuntu Server 22.04 LTS ativo.
-Modo de aprendizado de comandos habilitado.
-Digite <span style="color: var(--success)">'help'</span> para a lista de comandos ou <span style="color: var(--success)">'clear'</span> para limpar.
-</div>
+            <div id="terminal-output">Bem-vindo ao Simulador Ubuntu Server 22.04 LTS.
+Ambiente de treinamento ativo.
+
+Digite <span style="color: var(--accent-yellow)">'help'</span> para listar os comandos disponíveis ou <span style="color: var(--accent-yellow)">'clear'</span> para limpar a tela.
+<br><br></div>
+            
             <div class="input-line">
-                <span class="prompt"><span class="user">aluno</span><span class="char">@</span><span class="host">ubuntu</span><span class="char">:</span><span class="dir">~</span><span class="char">$</span></span>
+                <span class="prompt">aluno@ubuntu:~$</span>
                 <input type="text" id="cmd-input" autocomplete="off" autofocus spellcheck="false">
             </div>
         </div>
     </div>
 
+    <!-- LADO DIREITO: PAINEL DE ADMINISTRAÇÃO -->
     <div id="admin-container">
-        <h2>Logs de Auditoria (Admin)</h2>
+        <div class="admin-header">
+            Monitor de Atividades (Logs)
+        </div>
         <div id="log-output">
-            </div>
+            <!-- Os logs em tempo real aparecerão aqui -->
+        </div>
     </div>
 
     <script>
-        // === 1. CAPTURA DOS ELEMENTOS DA TELA ===
-        // Usamos document.getElementById para pegar as 'caixas' do HTML e poder manipulá-las no Javascript
         const terminalOutput = document.getElementById('terminal-output');
         const cmdInput = document.getElementById('cmd-input');
         const logOutput = document.getElementById('log-output');
         const terminalContainer = document.getElementById('terminal-container');
 
-        // === 2. BANCO DE DADOS DOS COMANDOS (CORRIGIDO E TÉCNICO) ===
+        // === BANCO DE DADOS DOS COMANDOS (TÉCNICO E RIGOROSO) ===
         const commands = {
             // -- 30 Comandos de Administração --
             "ls": { sim: "Desktop  Documents  Downloads  Music  Pictures", desc: "Lista o conteúdo de diretórios. Pode usar '-l' para ver permissões e detalhes, ou '-a' para mostrar arquivos ocultos." },
@@ -259,82 +314,65 @@ Digite <span style="color: var(--success)">'help'</span> para a lista de comando
             "wget": { sim: "Download concluído. 'arquivo.zip' salvo.", desc: "Utilitário não-interativo para o download de arquivos via web. Excelente para baixar arquivos grandes ou espelhar sites." }
         };
 
-        // === 3. FUNÇÃO DE LOG (ADMIN) ===
-        // Responsável por criar a visualização no painel da direita.
+        // Função que envia o log para o painel de administrador
         function addLog(commandText) {
-            const now = new Date(); // Pega a data e hora exata do momento do comando
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('pt-BR'); // Ex: 14:35:09
             
-            // Formata a hora para ficar sempre com 2 dígitos (ex: 09:05:02 em vez de 9:5:2)
-            const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
-                               now.getMinutes().toString().padStart(2, '0') + ':' + 
-                               now.getSeconds().toString().padStart(2, '0');
-            
-            // Cria um novo bloco de HTML em texto
             const logHTML = `
                 <div class="log-entry">
-                    <span class="log-time">[${timeString}]</span>
-                    Usuário executou: <strong>${commandText}</strong>
+                    <span class="log-time">[${timeString}] Nova Atividade</span>
+                    <span class="log-cmd">> ${commandText}</span>
                 </div>
             `;
             
-            // Injeta o bloco criado no final da lista de logs
             logOutput.innerHTML += logHTML;
-            
-            // Força a barra de rolagem do painel admin a descer para mostrar o log mais recente
-            logOutput.scrollTop = logOutput.scrollHeight;
+            logOutput.scrollTop = logOutput.scrollHeight; // Rola o log para o final
         }
 
-        // === 4. LÓGICA PRINCIPAL DO TERMINAL ===
-        // Fica 'escutando' o teclado. Sempre que o usuário aperta uma tecla no campo de input, essa função roda.
+        // Lógica de captura de comandos
         cmdInput.addEventListener('keydown', function(event) {
-            
-            // Verificamos se a tecla apertada foi o 'Enter'. Só queremos agir se ele enviar o comando.
             if (event.key === 'Enter') {
-                const rawInput = this.value;           // Pega exatamente o que o usuário digitou (ex: "   ls -l  ")
-                const input = rawInput.trim();         // Remove espaços em branco nas pontas (vira "ls -l")
-                const cmdBase = input.split(' ')[0].toLowerCase(); // Pega apenas a primeira palavra em minúsculo (vira "ls")
+                const rawInput = this.value;
+                const input = rawInput.trim();
+                const cmdBase = input.split(' ')[0].toLowerCase();
                 
-                // 4.1. Ecoar o comando na tela
-                // Simula o comportamento padrão do Linux: mostrar o prompt + comando digitado antes de dar a resposta
-                const promptHTML = `<span class="prompt"><span class="user">aluno</span><span class="char">@</span><span class="host">ubuntu</span><span class="char">:</span><span class="dir">~</span><span class="char">$</span></span>`;
-                terminalOutput.innerHTML += `\n${promptHTML} ${rawInput}\n`;
+                // 1. Ecoa o prompt e o que o usuário digitou
+                terminalOutput.innerHTML += `<span class="prompt">aluno@ubuntu:~$</span> ${rawInput}\n`;
 
-                // 4.2. Processar o comando apenas se o usuário digitou algo (não deu enter vazio)
                 if (input !== "") {
-                    addLog(input); // Manda o que o usuário digitou para a função do Administrador
+                    // Registra a ação no painel Admin
+                    addLog(input);
 
-                    // Comando CLEAR: Lógica especial para limpar a tela
+                    // 2. Processamento dos comandos
                     if (cmdBase === 'clear') {
-                        terminalOutput.innerHTML = ""; // Apaga todo o conteúdo interno da div
+                        terminalOutput.innerHTML = "";
                     } 
-                    // Comando HELP: Lógica especial para listar ajuda
                     else if (cmdBase === 'help') {
-                        terminalOutput.innerHTML += "Comandos disponíveis:\nADMIN: ls, cd, pwd, mkdir, rm, cp, mv, cat, less, tail, head, grep, find, chmod, chown, sudo, su, passwd, useradd, usermod, userdel, df, du, free, top, ps, kill, systemctl, apt, history\nREDE: ping, ip, ifconfig, netstat, ss, traceroute, nslookup, dig, curl, wget\nOUTROS: clear, help\n";
+                        let helpText = "<strong>COMANDOS DE ADMINISTRAÇÃO:</strong>\nls, cd, pwd, mkdir, rm, cp, mv, cat, less, tail, head, grep, find, chmod, chown, sudo, su, passwd, useradd, usermod, userdel, df, du, free, top, ps, kill, systemctl, apt, history\n\n<strong>COMANDOS DE REDE:</strong>\nping, ip, ifconfig, netstat, ss, traceroute, nslookup, dig, curl, wget\n\n<strong>SISTEMA:</strong>\nclear, help";
+                        terminalOutput.innerHTML += `<span class="cmd-sim-output">${helpText}</span>\n\n`;
                     } 
-                    // Se o comando existir no nosso "Banco de Dados" (Objeto 'commands' ali em cima)
                     else if (commands[cmdBase]) {
-                        
-                        // Se o comando tiver uma simulação de saída (ex: o texto que o 'ls' retorna)
+                        // Exibe a saída simulada se existir
                         if (commands[cmdBase].sim) {
-                            terminalOutput.innerHTML += commands[cmdBase].sim + "\n";
+                            terminalOutput.innerHTML += `<span class="cmd-sim-output">${commands[cmdBase].sim}</span>\n`;
                         }
-                        // Mostra a orientação didática destacada
-                        terminalOutput.innerHTML += `<span class="info-text">💡 Explicação: ${commands[cmdBase].desc}</span>\n`;
+                        // Exibe a explicação didática destacada
+                        terminalOutput.innerHTML += `<span class="info-text"><strong>O QUE ACONTECEU?</strong><br>${commands[cmdBase].desc}</span>`;
                     } 
-                    // Se o usuário digitou algo que não programamos
                     else {
-                        terminalOutput.innerHTML += `bash: ${cmdBase}: comando não encontrado\n`;
+                        terminalOutput.innerHTML += `<span class="cmd-sim-output" style="color: #ff5555;">bash: ${cmdBase}: comando não encontrado</span>\n\n`;
                     }
                 }
 
-                // 4.3. Limpezas finais após dar o enter
-                // Força o terminal a rolar a página para o fundo, para o usuário sempre ver a linha atual
-                terminalContainer.scrollTop = terminalContainer.scrollHeight;
-                
-                // Limpa o campo de texto para o usuário digitar o próximo comando
+                // Limpa o input e rola para o fim
                 this.value = '';
+                terminalContainer.scrollTop = terminalContainer.scrollHeight;
             }
         });
+        
+        // Foca no input assim que a página carrega
+        window.onload = () => cmdInput.focus();
     </script>
 </body>
 </html>
